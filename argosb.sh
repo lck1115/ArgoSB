@@ -154,12 +154,12 @@ cat > /etc/s-box-ag/sb.json <<EOF
     "level": "info",
     "timestamp": true
   },
-  "inbounds": [
-{
+"inbounds": [
+    { // VMess (保留现有配置)
         "type": "vmess",
         "tag": "vmess-sb",
         "listen": "::",
-        "listen_port": ${port_vm_ws},
+        "listen_port": ${port_vm_ws}, // 所有服务共享此端口
         "users": [
             {
                 "uuid": "${UUID}",
@@ -168,18 +168,37 @@ cat > /etc/s-box-ag/sb.json <<EOF
         ],
         "transport": {
             "type": "ws",
-            "path": "${UUID}-vm",
-            "max_early_data":2048,
-            "early_data_header_name": "Sec-WebSocket-Protocol"    
-        },
-        "tls":{
-                "enabled": false,
-                "server_name": "www.bing.com",
-                "certificate_path": "/etc/s-box-ag/cert.pem",
-                "key_path": "/etc/s-box-ag/private.key"
-            }
+            "path": "${UUID}-vm", // VMess 的 WebSocket 路径
+            "max_early_data": 2048,
+            "early_data_header_name": "Sec-WebSocket-Protocol"
+        }
+        // 注意：原有的内部 "tls" 部分可以保留，但其 "enabled": false 使得它不起作用，由 Argo 处理外部 TLS
+    },
+    { // 新增 SOCKS5 over WebSocket
+        "type": "socks",
+        "tag": "socks-ws-sb",
+        "listen": "::",
+        "listen_port": ${port_vm_ws}, // 与 VMess 共享相同的本地监听端口
+        // 如果需要认证，可以在这里添加 "users" 数组，例如：
+        // "users": [ { "username": "test", "password": "test123" } ],
+        "transport": {
+            "type": "ws",
+            "path": "${UUID}-s5" // 为 SOCKS5 定义一个新的、唯一的 WebSocket 路径
+        }
+    },
+    { // 新增 HTTP Proxy over WebSocket
+        "type": "http",
+        "tag": "http-ws-sb",
+        "listen": "::",
+        "listen_port": ${port_vm_ws}, // 与 VMess 共享相同的本地监听端口
+        // 如果需要认证，可以在这里添加 "users" 数组，例如：
+        // "users": [ { "username": "htest", "password": "htest123" } ],
+        "transport": {
+            "type": "ws",
+            "path": "${UUID}-hp" // 为 HTTP 代理定义一个新的、唯一的 WebSocket 路径
+        }
     }
-    ],
+  ],
 "outbounds": [
 {
 "type":"direct",
